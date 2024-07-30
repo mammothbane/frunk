@@ -40,10 +40,12 @@ assert_eq!(monoid::combine_all(&vec_of_hashes), h_expected);
 use super::semigroup::{All, Any, Product, Semigroup};
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
+use alloc::collections::{BTreeSet, BTreeMap};
+#[cfg(feature = "alloc")]
 use core::hash::Hash;
 #[cfg(feature = "std")]
-use std::collections::*;
+use std::collections::{HashSet, HashMap};
 
 /// A Monoid is a Semigroup that has an empty/ zero value
 pub trait Monoid: Semigroup {
@@ -131,6 +133,27 @@ where
 {
     fn empty() -> Self {
         Vec::new()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T> Monoid for BTreeSet<T>
+where
+    T: Hash + Eq + Clone + Ord,
+{
+    fn empty() -> Self {
+        BTreeSet::new()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<K, V> Monoid for BTreeMap<K, V>
+where
+    K: Eq + Hash + Clone + Ord,
+    V: Semigroup + Clone,
+{
+    fn empty() -> Self {
+        BTreeMap::new()
     }
 }
 
@@ -368,6 +391,54 @@ mod tests {
         h_expected.insert(1, String::from("Hello World"));
         h_expected.insert(2, String::from("Goodbye"));
         h_expected.insert(3, String::from("Cruel World")); // h_expected is HashMap ( 1 -> "Hello World", 2 -> "Goodbye", 3 -> "Cruel World")
+        assert_eq!(combine_all(&vec_of_hashes), h_expected);
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_combine_all_btreeset() {
+        let vec_of_no_hashes: Vec<BTreeSet<i32>> = Vec::new();
+        assert_eq!(
+            combine_all(&vec_of_no_hashes),
+            <BTreeSet<i32> as Monoid>::empty()
+        );
+
+        let mut h1 = BTreeSet::new();
+        h1.insert(1);
+        let mut h2 = BTreeSet::new();
+        h2.insert(2);
+        let mut h3 = BTreeSet::new();
+        h3.insert(3);
+        let vec_of_hashes = vec![h1, h2, h3];
+        let mut h_expected = BTreeSet::new();
+        h_expected.insert(1);
+        h_expected.insert(2);
+        h_expected.insert(3);
+        assert_eq!(combine_all(&vec_of_hashes), h_expected);
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_combine_all_btreemap() {
+        let vec_of_no_hashmaps: Vec<BTreeMap<i32, String>> = Vec::new();
+        assert_eq!(
+            combine_all(&vec_of_no_hashmaps),
+            <BTreeMap<i32, String> as Monoid>::empty()
+        );
+
+        let mut h1: BTreeMap<i32, String> = BTreeMap::new();
+        h1.insert(1, String::from("Hello")); // h1 is BTreeMap( 1 -> "Hello")
+        let mut h2: BTreeMap<i32, String> = BTreeMap::new();
+        h2.insert(1, String::from(" World"));
+        h2.insert(2, String::from("Goodbye")); // h2 is BTreeMap( 1 -> " World", 2 -> "Goodbye")
+        let mut h3: BTreeMap<i32, String> = BTreeMap::new();
+        h3.insert(3, String::from("Cruel World")); // h3 is BTreeMap( 3 -> "Cruel World")
+        let vec_of_hashes = vec![h1, h2, h3];
+
+        let mut h_expected: BTreeMap<i32, String> = BTreeMap::new();
+        h_expected.insert(1, String::from("Hello World"));
+        h_expected.insert(2, String::from("Goodbye"));
+        h_expected.insert(3, String::from("Cruel World")); // h_expected is BTreeMap ( 1 -> "Hello World", 2 -> "Goodbye", 3 -> "Cruel World")
         assert_eq!(combine_all(&vec_of_hashes), h_expected);
     }
 

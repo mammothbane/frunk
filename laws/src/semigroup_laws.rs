@@ -42,7 +42,7 @@ mod tests {
     use super::*;
     use crate::wrapper::*;
     use quickcheck::quickcheck;
-    use std::collections::{HashMap, HashSet};
+    use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 
     #[test]
     fn string_prop() {
@@ -69,6 +69,19 @@ mod tests {
         quickcheck(
             associativity
                 as fn(HashMap<i8, String>, HashMap<i8, String>, HashMap<i8, String>) -> bool,
+        )
+    }
+
+    #[test]
+    fn btreeset_prop() {
+        quickcheck(associativity as fn(BTreeSet<i8>, BTreeSet<i8>, BTreeSet<i8>) -> bool)
+    }
+
+    #[test]
+    fn btreemap_prop() {
+        quickcheck(
+            associativity
+                as fn(BTreeMap<i8, String>, BTreeMap<i8, String>, BTreeMap<i8, String>) -> bool,
         )
     }
 

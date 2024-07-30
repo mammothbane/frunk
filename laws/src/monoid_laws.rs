@@ -66,7 +66,7 @@ mod tests {
     use crate::wrapper::*;
     use frunk::semigroup::*;
     use quickcheck::quickcheck;
-    use std::collections::{HashMap, HashSet};
+    use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet};
 
     #[test]
     fn string_id_prop() {
@@ -96,6 +96,18 @@ mod tests {
     fn hashmap_id_prop() {
         quickcheck(left_identity as fn(HashMap<i32, String>) -> bool);
         quickcheck(right_identity as fn(HashMap<i32, String>) -> bool);
+    }
+
+    #[test]
+    fn btreeset_id_prop() {
+        quickcheck(left_identity as fn(BTreeSet<i32>) -> bool);
+        quickcheck(right_identity as fn(BTreeSet<i32>) -> bool);
+    }
+
+    #[test]
+    fn btreemap_id_prop() {
+        quickcheck(left_identity as fn(BTreeMap<i32, String>) -> bool);
+        quickcheck(right_identity as fn(BTreeMap<i32, String>) -> bool);
     }
 
     #[test]

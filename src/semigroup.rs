@@ -31,13 +31,15 @@ use frunk_core::hlist::*;
 use core::cell::*;
 use core::cmp::Ordering;
 #[cfg(feature = "std")]
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::Entry as HashEntry;
 #[cfg(feature = "std")]
 use std::collections::{HashMap, HashSet};
 #[cfg(feature = "alloc")]
 use core::hash::Hash;
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec, boxed::Box};
+#[cfg(feature = "alloc")]
+use alloc::collections::{BTreeMap, BTreeSet, btree_map::Entry as BTreeEntry};
 use core::ops::{BitAnd, BitOr, Deref};
 
 /// Wrapper type for types that are ordered and can have a Max combination
@@ -210,6 +212,41 @@ impl<T: Semigroup> Semigroup for RefCell<T> {
     }
 }
 
+#[cfg(feature = "alloc")]
+impl<T> Semigroup for BTreeSet<T>
+where
+    T: Eq + Hash + Clone + Ord,
+{
+    fn combine(&self, other: &Self) -> Self {
+        self.union(other).cloned().collect()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<K, V> Semigroup for BTreeMap<K, V>
+where
+    K: Eq + Hash + Clone + Ord,
+    V: Semigroup + Clone,
+{
+    fn combine(&self, other: &Self) -> Self {
+        let mut h: BTreeMap<K, V> = self.clone();
+        for (k, v) in other {
+            let k_clone = k.clone();
+            match h.entry(k_clone) {
+                BTreeEntry::Occupied(o) => {
+                    let existing = o.into_mut();
+                    let comb = existing.combine(v);
+                    *existing = comb;
+                }
+                BTreeEntry::Vacant(o) => {
+                    o.insert(v.clone());
+                }
+            }
+        }
+        h
+    }
+}
+
 #[cfg(feature = "std")]
 impl<T> Semigroup for HashSet<T>
 where
@@ -231,12 +268,12 @@ where
         for (k, v) in other {
             let k_clone = k.clone();
             match h.entry(k_clone) {
-                Entry::Occupied(o) => {
+                HashEntry::Occupied(o) => {
                     let existing = o.into_mut();
                     let comb = existing.combine(v);
                     *existing = comb;
                 }
-                Entry::Vacant(o) => {
+                HashEntry::Vacant(o) => {
                     o.insert(v.clone());
                 }
             }
@@ -438,6 +475,25 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
+    fn test_btreeset() {
+        let mut v1 = BTreeSet::new();
+        v1.insert(1);
+        v1.insert(2);
+        assert!(!v1.contains(&3));
+        let mut v2 = BTreeSet::new();
+        v2.insert(3);
+        v2.insert(4);
+        assert!(!v2.contains(&1));
+        let mut expected = BTreeSet::new();
+        expected.insert(1);
+        expected.insert(2);
+        expected.insert(3);
+        expected.insert(4);
+        assert_eq!(v1.combine(&v2), expected)
+    }
+
+    #[test]
     #[cfg(feature = "std")]
     fn test_tuple() {
         let t1 = (1, 2.5f32, String::from("hi"), Some(3));
@@ -487,6 +543,23 @@ mod tests {
         v2.insert(1, Some(" World".to_owned()));
         v2.insert(4, Some("Nope".to_owned()));
         let mut expected = HashMap::new();
+        expected.insert(1, Some("Hello World".to_owned()));
+        expected.insert(2, Some("Goodbye".to_owned()));
+        expected.insert(4, Some("Nope".to_owned()));
+        assert_eq!(v1.combine(&v2), expected)
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_btreemap() {
+        let mut v1: BTreeMap<i32, Option<String>> = BTreeMap::new();
+        v1.insert(1, Some("Hello".to_owned()));
+        v1.insert(2, Some("Goodbye".to_owned()));
+        v1.insert(4, None);
+        let mut v2: BTreeMap<i32, Option<String>> = BTreeMap::new();
+        v2.insert(1, Some(" World".to_owned()));
+        v2.insert(4, Some("Nope".to_owned()));
+        let mut expected = BTreeMap::new();
         expected.insert(1, Some("Hello World".to_owned()));
         expected.insert(2, Some("Goodbye".to_owned()));
         expected.insert(4, Some("Nope".to_owned()));
